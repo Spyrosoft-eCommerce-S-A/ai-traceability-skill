@@ -5,78 +5,47 @@ description: Annotate every file you create or modify with a traceability header
 
 # AI Traceability Skill
 
-Annotate every file you create or modify with a traceability header. Track all changes in `ai-changelog.md`.
+Add a traceability header to every file you create or modify. Track all changes in `ai-changelog.md`.
 
-## Header Format
+A **session** = one AI interaction (chat thread, Codex task, agentic loop, or batch of completions). Each session gets **one** random 8-char hex ID. New prompt / new chat = new session.
+
+## Header
 
 ```
 AI Label:       ai-created | ai-evolved | ai-modified | ai-assisted
 AI Changelog:   <8-char-hex>
-AI Revisions:   <N>                     ← increments each session that touches the file
-Risk Class:     low | medium | high     ← highest ever seen across all sessions (ratchet up, never down)
-AI Tool:        <tool-name>             ← current session's tool (e.g. copilot, codex, claude, gemini)
-AI Description: <what-changed>          ← required for ai-modified, ai-evolved, and ai-assisted; optional for ai-created
+AI Revisions:   <N>           ← +1 each session that touches the file
+Risk Class:     low | medium | high  ← ratchets up, never down
+AI Tool:        <tool-name>
+AI Description: <what-changed> ← required except for ai-created
 ```
 
-## Labels & Escalation
+**Labels:** `ai-created` = fully AI-generated; `ai-evolved` = origin was `ai-created`, now AI-modified in a later session; `ai-modified` = human-created file modified by AI; `ai-assisted` = human-led with AI help.
 
-| Label | When |
-|-------|------|
-| `ai-created` | File fully created by AI in this session |
-| `ai-evolved` | File was originally `ai-created`, now modified by AI in a subsequent session |
-| `ai-modified` | Human-created file modified by AI |
-| `ai-assisted` | Human-led, AI-assisted changes |
+**Escalation — within a session:** only escalate, never downgrade: `ai-created` → `ai-modified` → `ai-assisted` (same from `ai-evolved` → `ai-assisted`).
 
-### Within a session
-
-Labels only escalate, never downgrade: `ai-created` → `ai-modified` → `ai-assisted`.
-Same rule applies when starting from `ai-evolved`: `ai-evolved` → `ai-assisted`.
-
-### Across sessions
-
-- If the file's **origin label** (from its first changelog entry) was `ai-created`, use `ai-evolved` instead of `ai-modified` in all subsequent sessions.
-- If the origin was `ai-modified` or `ai-assisted`, keep using `ai-modified` in subsequent sessions.
-- When a new session touches a file, increment `AI Revisions` by 1.
-- `Risk Class` ratchets to the **highest ever seen** across all sessions — never downgrade.
+**Escalation — across sessions:** If origin label was `ai-created` → use `ai-evolved` in subsequent sessions. Otherwise → `ai-modified`. Human-led always → `ai-assisted`. Increment `AI Revisions` +1. `Risk Class` = max(current, all previous).
 
 ## Placement
 
-1. Place **after** any syntax-required first lines (shebangs, `<?php`, XML declarations, `@charset`, encoding declarations, `//go:build`).
-2. Place **after** any existing license header.
-3. **Update in-place** if the file already has a traceability header.
+Place **after** syntax-required first lines (shebangs, `<?php`, XML decls, `@charset`, `//go:build`), **after** pragmas (`"use strict"`, `"use client"`, `"use server"`, `# frozen_string_literal: true`, `# -*- coding: utf-8 -*-`, modelines), **after** license headers, **before** Python docstrings. Update in-place if header exists.
 
-## Excluded Files
-
-Do **not** annotate: JSON, binary files, CSV/TSV, lock files, auto-generated files. Record these changes only in `ai-changelog.md`.
+**Excluded:** JSON, binaries, CSV/TSV, lock files, auto-generated files — changelog only.
 
 ## Comment Syntax
 
-Use the language's standard comment style:
-
 | Style | Languages |
 |-------|-----------|
-| `/** ... */` | PHP (`<?php`), JS/TS, Java, Kotlin, C/C++, C#, Dart |
-| `# ...` | Python, Ruby, Shell, YAML, Dockerfile, Make, Terraform/HCL, Elixir, Erlang |
-| `// ...` | Go, Rust, Swift, Proto, GraphQL |
-| `<!-- ... -->` | HTML, XML |
-| `/* ... */` | CSS, SCSS |
-| `-- ...` | SQL, Lua |
+| `/** … */` | PHP, JS/TS, Java, Kotlin, C/C++, C#, Dart |
+| `# …` | Python, Ruby, Shell, YAML, Dockerfile, Make, HCL, Elixir, Erlang |
+| `// …` | Go, Rust, Swift, Proto, GraphQL |
+| `<!-- … -->` | HTML, XML |
+| `/* … */` | CSS, SCSS |
+| `-- …` | SQL, Lua |
 
-For unlisted languages, use their standard comment syntax.
+Unlisted languages: use their standard comment syntax.
 
-### Examples
-
-```php
-<?php
-/**
- * AI Label: ai-created
- * AI Changelog: a1b2c3d4
- * AI Revisions: 1
- * Risk Class: low
- * AI Tool: codex
- */
-```
-
+Example (Python):
 ```python
 # AI Label: ai-evolved
 # AI Changelog: e5f6g7h8
@@ -86,41 +55,55 @@ For unlisted languages, use their standard comment syntax.
 # AI Description: Refactored parse_config for YAML support
 ```
 
-## Risk Classification
+## Risk
 
-| Risk | Scope |
-|------|-------|
+| Level | Scope |
+|-------|-------|
 | low | Docs, comments, config, styling, tests, formatting |
 | medium | Business logic, features, refactors, dependencies |
 | high | Auth, security, data migrations, API contracts, infra, PII |
 
-Use the **highest** applicable level when a change spans multiple risks.
+Use highest applicable level when a change spans multiple categories.
 
 ## Changelog
 
-Add an entry to `ai-changelog.md` (project root) after completing work. Insert at any position (top recommended). Create the file with header `# AI Changelog` if missing.
+Append to `ai-changelog.md` (project root; create with `# AI Changelog` header if missing):
 
 ```markdown
 ## <8-char-hex> — <YYYY-MM-DD HH:MM:SS UTC>
-**Label:** <label>
-**Risk:** <low|medium|high>
-**Tool:** <tool-name>
-**Revision:** <N>                                     ← file-level revision number for each touched file
-**Files:** `file1.py`, `file2.ts`
-**Lines:** `file1.py:12-45`, `file2.ts:8-20,55-60`   ← for ai-modified, ai-evolved, and ai-assisted; omit for ai-created
+**Label:** <label>  **Risk:** <level>  **Tool:** <tool>
+**Files:** `file1.py` (rev 2), `file2.ts` (rev 1)
+**Lines:** `file1.py:12-45`, `file2.ts:8-20,55-60`  ← omit for ai-created
 **Summary:** One-line description
 ```
 
-The 8-char hex is a random hexadecimal string unique within the changelog, linking the header annotation to its changelog entry.
+The 8-char hex links the header to its changelog entry (must be unique within the changelog).
 
-### Determining revision and label for a file
+**Determining revision & label:** Search `ai-changelog.md` for the file. No prior entries → rev 1, label per within-session rules. Prior entries exist → rev = previous max + 1; check earliest entry's label to decide `ai-evolved` vs `ai-modified`; risk = max of current and all prior.
 
-1. Search `ai-changelog.md` for prior entries that list the file.
-2. If none exist → `AI Revisions: 1`. Label follows within-session rules.
-3. If entries exist → `AI Revisions: <previous max + 1>`. Check the **earliest** entry's label:
-   - If it was `ai-created` → use `ai-evolved` (unless human-led, then `ai-assisted`).
-   - Otherwise → use `ai-modified` (unless human-led, then `ai-assisted`).
-4. Set `Risk Class` to the **highest** between the current change and any previous entry for the file.
+## Deletions, Renames & Moves
+
+Record in changelog only (deleted files can't hold headers).
+
+- **Delete:** `**Action:** deleted`, list removed file.
+- **Rename/Move:** `**Action:** renamed` or `moved`, `` `old/path` → `new/path` `` in Files. Update destination header.
+- **Copy + delete** (split): log creation + deletion in same entry.
+
+```markdown
+## f4e5d6c7 — 2026-04-03 12:00:00 UTC
+**Label:** ai-modified  **Risk:** low  **Tool:** copilot
+**Action:** renamed
+**Files:** `utils/helpers.py` → `core/helpers.py` (rev 3)
+**Summary:** Moved helpers into core package
+```
+
+## Human Overrides
+
+If a human fully replaces an AI-annotated file's contents: remove the header, log `**Action:** human-override` in the changelog. History stays in changelog for audit. If AI later modifies the file, treat as fresh `ai-modified` (rev 1) — do not continue the old revision sequence.
+
+## Team Merge Conflicts
+
+To avoid conflicts on a shared `ai-changelog.md`, choose one strategy: (1) per-developer files (`ai-changelog-<user>.md`) merged by CI, (2) directory of session files (`ai-changelog/<hex>.md`), or (3) append-only at file bottom. The header `AI Changelog: <hex>` must always resolve to a findable entry.
 
 ## Formatter Compatibility
 
