@@ -4,9 +4,10 @@ A [Claude Code skill](https://code.claude.com/docs/en/skills) that ensures AI ag
 
 ## What It Does
 
-- **Annotates files** with a structured header comment (label, changelog hash, risk class, tool, description)
+- **Annotates files** with a structured header comment (label, changelog hash, revision count, risk class, tool, description)
 - **Tracks changes** in a centralized `ai-changelog.md` with unique session hashes
-- **Classifies risk** of each change (low / medium / high)
+- **Tracks revisions** across sessions — revision counter increments each time a new session touches a file
+- **Classifies risk** of each change (low / medium / high), ratcheting up across sessions
 - **Adapts comment syntax** to the target language automatically
 - **Handles edge cases** — shebangs, license headers, formats that don't support comments
 
@@ -14,21 +15,25 @@ A [Claude Code skill](https://code.claude.com/docs/en/skills) that ensures AI ag
 
 | Label | When |
 |-------|------|
-| `ai-created` | File fully created by AI |
-| `ai-modified` | Existing file modified by AI |
+| `ai-created` | File fully created by AI in this session |
+| `ai-evolved` | Originally `ai-created`, modified by AI in a subsequent session |
+| `ai-modified` | Human-created file modified by AI |
 | `ai-assisted` | Human-led, AI-assisted changes |
 
-Labels only escalate within a session: `ai-created` → `ai-modified` → `ai-assisted`.
+Within a session, labels escalate: `ai-created` → `ai-modified` → `ai-assisted`.  
+Across sessions, an `ai-created` file becomes `ai-evolved` when modified again.
 
 ## Example
 
 ```php
 <?php
 /**
- * AI Label: ai-created
+ * AI Label: ai-evolved
  * AI Changelog: a1b2c3d4
+ * AI Revisions: 2
  * Risk Class: low
  * AI Tool: copilot
+ * AI Description: Added input validation
  */
 ```
 
